@@ -32,20 +32,39 @@ import org.springframework.batch.item.support.AbstractItemCountingItemStreamItem
 import org.springframework.beans.factory.InitializingBean;
 
 /**
+ * 继承 org.springframework.batch.item.support.AbstractItemCountingItemStreamItemReader 抽象类，实现 InitializingBean 接口，基于 Cursor 的 MyBatis 的读取器
  * @author Guillaume Darmont / guillaume@dropinocean.com
  */
 public class MyBatisCursorItemReader<T> extends AbstractItemCountingItemStreamItemReader<T>
     implements InitializingBean {
 
+  /**
+   * 查询编号
+   */
   private String queryId;
 
+  /**
+   * SqlSessionFactory 对象
+   */
   private SqlSessionFactory sqlSessionFactory;
+  /**
+   * SqlSession 对象
+   */
   private SqlSession sqlSession;
 
+  /**
+   * 参数值的映射
+   */
   private Map<String, Object> parameterValues;
   private Supplier<Map<String, Object>> parameterValuesSupplier;
 
+  /**
+   * Cursor 对象
+   */
   private Cursor<T> cursor;
+  /**
+   * {@link #cursor} 的迭代器
+   */
   private Iterator<T> cursorIterator;
 
   public MyBatisCursorItemReader() {
@@ -54,15 +73,19 @@ public class MyBatisCursorItemReader<T> extends AbstractItemCountingItemStreamIt
 
   @Override
   protected T doRead() throws Exception {
+    // 置空 next
     T next = null;
+    // 读取下一条
     if (cursorIterator.hasNext()) {
       next = cursorIterator.next();
     }
+    // 返回
     return next;
   }
 
   @Override
   protected void doOpen() throws Exception {
+    // <1> 创建 parameters 参数
     Map<String, Object> parameters = new HashMap<>();
     if (parameterValues != null) {
       parameters.putAll(parameterValues);
@@ -70,19 +93,25 @@ public class MyBatisCursorItemReader<T> extends AbstractItemCountingItemStreamIt
 
     Optional.ofNullable(parameterValuesSupplier).map(Supplier::get).ifPresent(parameters::putAll);
 
+    // <2> 创建 SqlSession 对象
     sqlSession = sqlSessionFactory.openSession(ExecutorType.SIMPLE);
+    // <3.1> 查询，返回 Cursor 对象
     cursor = sqlSession.selectCursor(queryId, parameters);
+    // <3.2> 获得 cursor 的迭代器
     cursorIterator = cursor.iterator();
   }
 
   @Override
   protected void doClose() throws Exception {
+    // 关闭 cursor 对象
     if (cursor != null) {
       cursor.close();
     }
+    // 关闭 sqlSession 对象
     if (sqlSession != null) {
       sqlSession.close();
     }
+    // 置空 cursorIterator
     cursorIterator = null;
   }
 

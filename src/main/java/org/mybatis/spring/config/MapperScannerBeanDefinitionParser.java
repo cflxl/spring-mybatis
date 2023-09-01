@@ -43,6 +43,8 @@ import org.w3c.dom.Element;
  * @see MapperFactoryBean
  * @see ClassPathMapperScanner
  * @see MapperScannerConfigurer
+ *
+ * 实现 BeanDefinitionParser 接口，<mybatis:scan /> 的解析器
  */
 
 public class MapperScannerBeanDefinitionParser extends AbstractBeanDefinitionParser {
@@ -73,6 +75,7 @@ public class MapperScannerBeanDefinitionParser extends AbstractBeanDefinitionPar
     builder.addPropertyValue("processPropertyPlaceHolders",
         !StringUtils.hasText(processPropertyPlaceHolders) || Boolean.parseBoolean(processPropertyPlaceHolders));
     try {
+      // 解析 annotation 属性
       String annotationClassName = element.getAttribute(ATTRIBUTE_ANNOTATION);
       if (StringUtils.hasText(annotationClassName)) {
         @SuppressWarnings("unchecked")
@@ -80,11 +83,13 @@ public class MapperScannerBeanDefinitionParser extends AbstractBeanDefinitionPar
             .loadClass(annotationClassName);
         builder.addPropertyValue("annotationClass", annotationClass);
       }
+      // 解析 marker-interface 属性
       String markerInterfaceClassName = element.getAttribute(ATTRIBUTE_MARKER_INTERFACE);
       if (StringUtils.hasText(markerInterfaceClassName)) {
         Class<?> markerInterface = classLoader.loadClass(markerInterfaceClassName);
         builder.addPropertyValue("markerInterface", markerInterface);
       }
+      // 解析 name-generator 属性
       String nameGeneratorClassName = element.getAttribute(ATTRIBUTE_NAME_GENERATOR);
       if (StringUtils.hasText(nameGeneratorClassName)) {
         Class<?> nameGeneratorClass = classLoader.loadClass(nameGeneratorClassName);
@@ -103,7 +108,9 @@ public class MapperScannerBeanDefinitionParser extends AbstractBeanDefinitionPar
       readerContext.error(ex.getMessage(), readerContext.extractSource(element), ex.getCause());
     }
 
+    // 解析 template-ref 属性
     builder.addPropertyValue("sqlSessionTemplateBeanName", element.getAttribute(ATTRIBUTE_TEMPLATE_REF));
+    // 解析 factory-ref 属性
     builder.addPropertyValue("sqlSessionFactoryBeanName", element.getAttribute(ATTRIBUTE_FACTORY_REF));
     builder.addPropertyValue("lazyInitialization", element.getAttribute(ATTRIBUTE_LAZY_INITIALIZATION));
     builder.addPropertyValue("defaultScope", element.getAttribute(ATTRIBUTE_DEFAULT_SCOPE));

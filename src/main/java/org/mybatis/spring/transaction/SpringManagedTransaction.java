@@ -40,17 +40,32 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * @author Hunter Presnall
  * @author Eduardo Macarron
+ * 实现 org.apache.ibatis.transaction.Transaction 接口，Spring 托管事务的 Transaction 实现类
  */
 public class SpringManagedTransaction implements Transaction {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SpringManagedTransaction.class);
 
+  /**
+   * DataSource 对象
+   */
   private final DataSource dataSource;
 
+  /**
+   * Connection 对象
+   */
   private Connection connection;
 
+  /**
+   * 当前连接是否处于事务中
+   *
+   * @see DataSourceUtils#isConnectionTransactional(Connection, DataSource)
+   */
   private boolean isConnectionTransactional;
 
+  /**
+   * 是否自动提交
+   */
   private boolean autoCommit;
 
   public SpringManagedTransaction(DataSource dataSource) {
@@ -63,6 +78,7 @@ public class SpringManagedTransaction implements Transaction {
    */
   @Override
   public Connection getConnection() throws SQLException {
+    // 如果连接不存在，获得连接
     if (this.connection == null) {
       openConnection();
     }
@@ -77,6 +93,7 @@ public class SpringManagedTransaction implements Transaction {
    * false and will always call commit/rollback so we need to no-op that calls.
    */
   private void openConnection() throws SQLException {
+    // 获得连接
     this.connection = DataSourceUtils.getConnection(this.dataSource);
     this.autoCommit = this.connection.getAutoCommit();
     this.isConnectionTransactional = DataSourceUtils.isConnectionTransactional(this.connection, this.dataSource);

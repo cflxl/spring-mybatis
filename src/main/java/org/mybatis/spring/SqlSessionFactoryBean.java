@@ -71,6 +71,7 @@ import org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy;
 import org.springframework.util.ClassUtils;
 
 /**
+ * 实现 FactoryBean、InitializingBean、ApplicationListener 接口，负责创建 SqlSessionFactory 对象
  * {@code FactoryBean} that creates a MyBatis {@code SqlSessionFactory}. This is the usual way to set up a shared
  * MyBatis {@code SqlSessionFactory} in a Spring application context; the SqlSessionFactory can then be passed to
  * MyBatis-based DAOs via dependency injection.
@@ -97,10 +98,16 @@ public class SqlSessionFactoryBean
   private static final ResourcePatternResolver RESOURCE_PATTERN_RESOLVER = new PathMatchingResourcePatternResolver();
   private static final MetadataReaderFactory METADATA_READER_FACTORY = new CachingMetadataReaderFactory();
 
+  /**
+   * 指定 mybatis-config.xml 路径的 Resource 对象
+   */
   private Resource configLocation;
 
   private Configuration configuration;
 
+  /**
+   * 指定 Mapper 路径的 Resource 数组
+   */
   private Resource[] mapperLocations;
 
   private DataSource dataSource;
@@ -565,6 +572,7 @@ public class SqlSessionFactoryBean
   }
 
   /**
+   * 构建 SqlSessionFactory 对象
    * {@inheritDoc}
    */
   @Override
@@ -574,6 +582,7 @@ public class SqlSessionFactoryBean
     state((configuration == null && configLocation == null) || !(configuration != null && configLocation != null),
         "Property 'configuration' and 'configLocation' can not specified with together");
 
+    // 创建 SqlSessionFactory 对象
     this.sqlSessionFactory = buildSqlSessionFactory();
   }
 
@@ -593,6 +602,7 @@ public class SqlSessionFactoryBean
 
     final Configuration targetConfiguration;
 
+    // 初始化 configuration 对象，和设置其 `configuration.variables` 属性
     XMLConfigBuilder xmlConfigBuilder = null;
     if (this.configuration != null) {
       targetConfiguration = this.configuration;
@@ -611,16 +621,21 @@ public class SqlSessionFactoryBean
       Optional.ofNullable(this.configurationProperties).ifPresent(targetConfiguration::setVariables);
     }
 
+    // 设置 `configuration.objectFactory` 属性
     Optional.ofNullable(this.objectFactory).ifPresent(targetConfiguration::setObjectFactory);
+    // 设置 `configuration.objectWrapperFactory` 属性
     Optional.ofNullable(this.objectWrapperFactory).ifPresent(targetConfiguration::setObjectWrapperFactory);
+    // 设置 `configuration.vfs` 属性
     Optional.ofNullable(this.vfs).ifPresent(targetConfiguration::setVfsImpl);
 
+    // 设置 `configuration.typeAliasesPackage` 属性
     if (hasLength(this.typeAliasesPackage)) {
       scanClasses(this.typeAliasesPackage, this.typeAliasesSuperType).stream()
           .filter(clazz -> !clazz.isAnonymousClass()).filter(clazz -> !clazz.isInterface())
           .filter(clazz -> !clazz.isMemberClass()).forEach(targetConfiguration.getTypeAliasRegistry()::registerAlias);
     }
 
+    // 设置 `configuration.typeAliases` 属性
     if (!isEmpty(this.typeAliases)) {
       Stream.of(this.typeAliases).forEach(typeAlias -> {
         targetConfiguration.getTypeAliasRegistry().registerAlias(typeAlias);
@@ -628,6 +643,7 @@ public class SqlSessionFactoryBean
       });
     }
 
+    // 初始化 `configuration.interceptorChain` 属性，即拦截器
     if (!isEmpty(this.plugins)) {
       Stream.of(this.plugins).forEach(plugin -> {
         targetConfiguration.addInterceptor(plugin);
@@ -635,12 +651,14 @@ public class SqlSessionFactoryBean
       });
     }
 
+    // 扫描 typeHandlersPackage 包，注册 TypeHandler
     if (hasLength(this.typeHandlersPackage)) {
       scanClasses(this.typeHandlersPackage, TypeHandler.class).stream().filter(clazz -> !clazz.isAnonymousClass())
           .filter(clazz -> !clazz.isInterface()).filter(clazz -> !Modifier.isAbstract(clazz.getModifiers()))
           .forEach(targetConfiguration.getTypeHandlerRegistry()::register);
     }
 
+    // 如果 typeHandlers 非空，注册对应的 TypeHandler
     if (!isEmpty(this.typeHandlers)) {
       Stream.of(this.typeHandlers).forEach(typeHandler -> {
         targetConfiguration.getTypeHandlerRegistry().register(typeHandler);
@@ -659,6 +677,7 @@ public class SqlSessionFactoryBean
     Optional.ofNullable(this.defaultScriptingLanguageDriver)
         .ifPresent(targetConfiguration::setDefaultScriptingLanguage);
 
+    // 设置 `configuration.databaseId` 属性
     if (this.databaseIdProvider != null) {// fix #64 set databaseId before parse mapper xmls
       try {
         targetConfiguration.setDatabaseId(this.databaseIdProvider.getDatabaseId(this.dataSource));
@@ -667,8 +686,10 @@ public class SqlSessionFactoryBean
       }
     }
 
+    // 设置 `configuration.cache` 属性
     Optional.ofNullable(this.cache).ifPresent(targetConfiguration::addCache);
 
+    // <1> 解析 mybatis-config.xml 配置
     if (xmlConfigBuilder != null) {
       try {
         xmlConfigBuilder.parse();
@@ -680,10 +701,13 @@ public class SqlSessionFactoryBean
       }
     }
 
+    // 初始化 TransactionFactory 对象
+    // 设置 `configuration.environment` 属性
     targetConfiguration.setEnvironment(new Environment(this.environment,
         this.transactionFactory == null ? new SpringManagedTransactionFactory() : this.transactionFactory,
         this.dataSource));
 
+    // 扫描 Mapper XML 文件们，并进行解析
     if (this.mapperLocations != null) {
       if (this.mapperLocations.length == 0) {
         LOGGER.warn(() -> "Property 'mapperLocations' was specified but matching resources are not found.");
@@ -708,14 +732,17 @@ public class SqlSessionFactoryBean
       LOGGER.debug(() -> "Property 'mapperLocations' was not specified.");
     }
 
+    // 创建 SqlSessionFactory 对象
     return this.sqlSessionFactoryBuilder.build(targetConfiguration);
   }
 
   /**
+   * 获得 SqlSessionFactory 对象
    * {@inheritDoc}
    */
   @Override
   public SqlSessionFactory getObject() throws Exception {
+    // 保证 SqlSessionFactory 对象的初始化
     if (this.sqlSessionFactory == null) {
       afterPropertiesSet();
     }
@@ -740,12 +767,14 @@ public class SqlSessionFactoryBean
   }
 
   /**
+   * 监听 ContextRefreshedEvent 事件，如果 MapperStatement 们，没有都初始化都完成，会抛出 IncompleteElementException 异常
    * {@inheritDoc}
    */
   @Override
   public void onApplicationEvent(ContextRefreshedEvent event) {
     if (failFast) {
       // fail-fast -> check all statements are completed
+      // 如果 MapperStatement 们，没有都初始化完成，会抛出 IncompleteElementException 异常
       this.sqlSessionFactory.getConfiguration().getMappedStatementNames();
     }
   }

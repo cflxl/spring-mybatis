@@ -38,15 +38,29 @@ import org.springframework.batch.item.database.AbstractPagingItemReader;
  * @author Eduardo Macarron
  *
  * @since 1.1.0
+ *
+ * 继承 org.springframework.batch.item.database.AbstractPagingItemReader 抽象类，基于分页的 MyBatis 的读取器
  */
 public class MyBatisPagingItemReader<T> extends AbstractPagingItemReader<T> {
 
+  /**
+   * 查询编号
+   */
   private String queryId;
 
+  /**
+   * SqlSessionFactory 对象
+   */
   private SqlSessionFactory sqlSessionFactory;
 
+  /**
+   * SqlSessionTemplate 对象
+   */
   private SqlSessionTemplate sqlSessionTemplate;
 
+  /**
+   * 参数值的映射
+   */
   private Map<String, Object> parameterValues;
 
   private Supplier<Map<String, Object>> parameterValuesSupplier;
@@ -104,6 +118,7 @@ public class MyBatisPagingItemReader<T> extends AbstractPagingItemReader<T> {
    */
   @Override
   public void afterPropertiesSet() throws Exception {
+    // 父类的处理
     super.afterPropertiesSet();
     notNull(sqlSessionFactory, "A SqlSessionFactory is required.");
     notNull(queryId, "A queryId is required.");
@@ -114,19 +129,24 @@ public class MyBatisPagingItemReader<T> extends AbstractPagingItemReader<T> {
     if (sqlSessionTemplate == null) {
       sqlSessionTemplate = new SqlSessionTemplate(sqlSessionFactory, ExecutorType.BATCH);
     }
+    // <1> 创建 parameters 参数
     Map<String, Object> parameters = new HashMap<>();
+    // <1.1> 设置原有参数
     if (parameterValues != null) {
       parameters.putAll(parameterValues);
     }
     Optional.ofNullable(parameterValuesSupplier).map(Supplier::get).ifPresent(parameters::putAll);
+    // <1.2> 设置分页参数
     parameters.put("_page", getPage());
     parameters.put("_pagesize", getPageSize());
     parameters.put("_skiprows", getPage() * getPageSize());
+    // <2> 清空目前的 results 结果
     if (results == null) {
       results = new CopyOnWriteArrayList<>();
     } else {
       results.clear();
     }
+    // <3> 查询结果
     results.addAll(sqlSessionTemplate.selectList(queryId, parameters));
   }
 

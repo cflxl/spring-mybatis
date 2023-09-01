@@ -19,7 +19,7 @@ import org.springframework.beans.factory.xml.NamespaceHandlerSupport;
 
 /**
  * Namespace handler for the MyBatis namespace.
- *
+ * 继承 NamespaceHandlerSupport 抽象类，MyBatis 的 XML Namespace 的处理器
  * @author Lishu Luo
  *
  * @see MapperScannerBeanDefinitionParser

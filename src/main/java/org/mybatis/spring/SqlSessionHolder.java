@@ -26,16 +26,27 @@ import org.springframework.transaction.support.ResourceHolderSupport;
  * Used to keep current {@code SqlSession} in {@code TransactionSynchronizationManager}. The {@code SqlSessionFactory}
  * that created that {@code SqlSession} is used as a key. {@code ExecutorType} is also kept to be able to check if the
  * user is trying to change it during a TX (that is not allowed) and throw a Exception in that case.
- *
+ * 继承 org.springframework.transaction.support.ResourceHolderSupport 抽象类，SqlSession 持有器，用于保存当前 SqlSession 对象，
+ * 保存到 org.springframework.transaction.support.TransactionSynchronizationManager 中
+ * SqlSession 持有器，用于保存当前 SqlSession 对象，保存到 TransactionSynchronizationManager 中
  * @author Hunter Presnall
  * @author Eduardo Macarron
  */
 public final class SqlSessionHolder extends ResourceHolderSupport {
 
+  /**
+   * SqlSession 对象
+   */
   private final SqlSession sqlSession;
 
+  /**
+   * 执行器类型
+   */
   private final ExecutorType executorType;
 
+  /**
+   * PersistenceExceptionTranslator 对象
+   */
   private final PersistenceExceptionTranslator exceptionTranslator;
 
   /**
